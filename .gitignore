@@ -1,0 +1,15 @@
+# Only the web app is published; pipeline, caches and old HTML backups stay local.
+/*
+!/.gitignore
+!/.nojekyll
+!/index.html
+!/README.md
+!/start.sh
+!/lib/
+!/data/
+/data/*
+!/data/aorta-data.js
+!/data/false-lumen-flow.js
+!/data/flow-data.js
+!/data/wall-flap-data.js
+!/data/wall-layers.js

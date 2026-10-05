@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aortendissektion und Aneurysma</title>
+<link rel="stylesheet" href="lib/fonts/fonts.css">
+<style>
+/* Layout: an anatomy-atlas plate at night — full-bleed 3D stage with a vignette; a chapter card tells the story (top left),
+   view controls and legend sit top right, the timeline with chapter markers is docked at the bottom. Single dark look. */
+:root {
+  --bg: #070b10;
+  --panel: rgba(12, 17, 23, 0.72);
+  --line: rgba(160, 190, 205, 0.16);
+  --fg: #e6ecef;
+  --muted: #8d9ca6;
+  --accent: #7fd3e6;          /* blood flow / interactive */
+  --tissue: #e3b5a8;
+  --flap: #f1d3a1;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-ui: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-ui); overflow: hidden; margin: 0; }
+#view { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+.hud { position: fixed; z-index: 2; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
+.eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); }
+
+/* chapter card */
+#info { top: calc(20px + env(safe-area-inset-top, 0px)); left: 20px; padding: 18px 20px 16px; width: min(360px, calc(100vw - 40px)); }
+h1 { margin: 6px 0 14px; font: 600 26px/1.15 var(--font-display); letter-spacing: -0.005em; text-wrap: balance; }
+.chapter { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+#ch-num { grid-row: span 2; font: 400 34px/1 var(--font-display); color: var(--accent); min-width: 1.2em; }
+#ch-title { font-size: 18px; font-weight: 600; line-height: 1.25; }
+#ch-text { grid-column: 1 / -1; margin: 8px 0 0; color: #c3cdd3; font-size: 14.5px; line-height: 1.5; max-width: 34em; transition: opacity .35s; }
+.metrics { display: flex; gap: 22px; margin-top: 14px; font: 12px var(--font-data); color: var(--muted); font-variant-numeric: tabular-nums; }
+.metrics b { display: block; font-weight: 400; color: var(--fg); font-size: 15px; }
+.note { margin: 12px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+
+/* view panel */
+#opts { top: calc(20px + env(safe-area-inset-top, 0px)); right: 20px; padding: 16px 18px; width: 236px; display: flex; flex-direction: column; gap: 12px; }
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; font-size: 15px; }
+.toggle input { appearance: none; -webkit-appearance: none; width: 34px; height: 19px; border-radius: 10px; background: #2a343c; position: relative; margin: 0; cursor: pointer; transition: background .2s; flex: none; }
+.toggle input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #c9d3d8; transition: transform .2s, background .2s; }
+.toggle input:checked { background: rgba(127, 211, 230, 0.45); }
+.toggle input:checked::after { transform: translateX(15px); background: var(--accent); }
+.toggle input:focus-visible, #play:focus-visible, input[type=range]:focus-visible, .ticks button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.slider-row { display: flex; flex-direction: column; gap: 6px; }
+.slider-row label { display: flex; justify-content: space-between; font-size: 13.5px; color: var(--muted); }
+#rate-val { font: 12px var(--font-data); color: var(--fg); }
+input[type=range] { accent-color: var(--accent); width: 100%; margin: 0; }
+.legend { display: flex; flex-direction: column; gap: 7px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ramp { height: 7px; border-radius: 4px; background: linear-gradient(90deg, #2a4fa8, #3fa7d6 35%, #bfeff7 70%, #fff3b0); box-shadow: 0 0 12px rgba(127, 211, 230, 0.35); }
+.ramp-labels { display: flex; justify-content: space-between; font: 11px var(--font-data); color: var(--muted); }
+.swatch { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: #c3cdd3; }
+.swatch i { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+.swatch[hidden] { display: none; }
+
+/* timeline */
+#timeline { left: 20px; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); padding: 14px 20px 12px; display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; align-items: center; }
+#play { grid-row: span 2; width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--accent); color: #06212a; cursor: pointer; display: grid; place-items: center; box-shadow: 0 0 24px rgba(127, 211, 230, 0.35); transition: transform .15s; }
+#play:hover { transform: scale(1.06); }
+#play svg { width: 18px; height: 18px; fill: currentColor; }
+.ticks { position: relative; height: 18px; }
+.ticks button { position: absolute; transform: translateX(-50%); background: none; border: 0; padding: 0 2px; cursor: pointer; font: 12px var(--font-ui); color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
+.ticks button:first-child { transform: none; }
+.ticks button:last-child { transform: translateX(-100%); }
+.ticks button.on { color: var(--fg); }
+.ticks button.cur { color: var(--accent); }
+
+#loading { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); font: 13px var(--font-data); z-index: 1; }
+#loading[hidden] { display: none; }
+@media (max-width: 760px) {
+  #opts { top: auto; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); left: 20px; right: 20px; width: auto; padding: 12px 14px; gap: 9px; }
+  #opts .legend, #opts .slider-row { display: none; }
+  #opts { gap: 5px; }
+  #opts .toggle { font-size: 13px; }
+  #info { padding: 14px 16px; } h1 { font-size: 21px; margin-bottom: 10px; } #ch-text, .note { display: none; }
+  .ticks button { font-size: 10.5px; letter-spacing: 0.04em; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="view" aria-label="3D-Ansicht der Aorta"></canvas>
+<div id="loading">Lade Geometrie …</div>
+
+<section class="hud" id="info">
+  <div class="eyebrow">Aorta thoracalis · CFD Pre → Post</div>
+  <h1>Von der gesunden Aorta zum Aneurysma</h1>
+  <div class="chapter" aria-live="polite">
+    <span id="ch-num">1</span>
+    <span id="ch-title">Gesunde Aorta</span>
+    <span class="eyebrow" id="prog">0 %</span>
+    <p id="ch-text"></p>
+  </div>
+  <div class="metrics">
+    <span>Strömung p99<b id="vel">– mm/s</b></span>
+  </div>
+  <p class="note">Dissektion mit anschließender aneurysmatischer Erweiterung. Drei Wandschichten modelliert zwischen den Datenoberflächen; Einriss und Zwischenbewegung sind angenommen.</p>
+</section>
+
+<section class="hud" id="opts" aria-label="Darstellung">
+  <label class="toggle">CFD-Blutfluss <input type="checkbox" id="o-flow" checked></label>
+  <label class="toggle">Innere Wand &amp; Ablösung <input type="checkbox" id="o-flap" checked></label>
+  <label class="toggle">Wahres &amp; falsches Lumen einfärben <input type="checkbox" id="o-lumen"></label>
+  <label class="toggle">Drei Wandschichten <input type="checkbox" id="o-layers" checked></label>
+  <label class="toggle">Wandschichten im Schnitt <input type="checkbox" id="o-cut"></label>
+  <label class="toggle">Langsam drehen <input type="checkbox" id="o-spin"></label>
+  <div class="slider-row"><label for="o-rate">Blutfluss-Tempo <span id="rate-val">Echtzeit</span></label><input type="range" id="o-rate" min="0.05" max="1" step="0.05" value="1"></div>
+  <div class="legend">
+    <span class="eyebrow">Geschwindigkeit</span>
+    <div class="ramp"></div>
+    <div class="ramp-labels"><span>0</span><span>500</span><span>1000 mm/s</span></div>
+    <span class="swatch lumen-key" hidden><i style="background:#3d8bfd"></i>Wahres Lumen</span>
+    <span class="swatch lumen-key" hidden><i style="background:#d9466f"></i>Falsches Lumen</span>
+    <span class="swatch"><i style="background:#ffb86b"></i>Einstrom &amp; Rückströmung im falschen Lumen · modelliert</span>
+    <span class="swatch"><i style="background:#ff8538"></i>Wirbel im falschen Lumen · Post-CFD</span>
+    <span class="swatch"><i style="background: var(--flap)"></i>Abgelöste innere Wand (Flap)</span>
+    <span class="swatch"><i style="background:#d18b86"></i>Adventitia · außen</span>
+    <span class="swatch"><i style="background:#b86981"></i>Media · mittig</span>
+    <span class="swatch"><i style="background:#f1d3a1"></i>Intima · innen</span>
+    <p class="note">Schichtgrenzen, Einriss und Einstrom durch den Einriss modelliert; Strömung im falschen Lumen aus der Post-CFD. Gefäßwand aus Pre-/Post-Daten; Post-Flap als Formvorgabe. Der offene Schnitt dient nur der Ansicht.</p>
+  </div>
+</section>
+
+<section class="hud" id="timeline" aria-label="Zeitleiste">
+  <button id="play" aria-label="Pause"><svg viewBox="0 0 20 20" id="play-icon"><rect x="4" y="3" width="4" height="14"/><rect x="12" y="3" width="4" height="14"/></svg></button>
+  <input type="range" id="t" min="0" max="1" step="0.001" value="0" aria-label="Verlauf">
+  <div class="ticks" id="ticks"></div>
+</section>
+
+<script src="lib/three.min.js"></script>
+<script src="lib/OrbitControls.js"></script>
+<script src="lib/CopyShader.js"></script>
+<script src="lib/LuminosityHighPassShader.js"></script>
+<script src="lib/FXAAShader.js"></script>
+<script src="lib/EffectComposer.js"></script>
+<script src="lib/RenderPass.js"></script>
+<script src="lib/ShaderPass.js"></script>
+<script src="lib/UnrealBloomPass.js"></script>
+<script src="data/aorta-data.js"></script>
+<script src="data/flow-data.js"></script>
+<script src="data/false-lumen-flow.js"></script>
+<script src="data/wall-flap-data.js"></script>
+<script src="data/wall-layers.js"></script>
+<script>
+(() => {
+const A = window.AORTA;
+const dec = (s, T) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new T(u.buffer); };
+const ui = id => document.getElementById(id);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- scene ----------
+const canvas = ui('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+// background: dark radial vignette, slightly lifted behind the vessel
+{ const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
+  const grd = g.createRadialGradient(256, 230, 20, 256, 256, 380);
+  grd.addColorStop(0, '#16212c'); grd.addColorStop(0.55, '#0b1118'); grd.addColorStop(1, '#040609');
+  g.fillStyle = grd; g.fillRect(0, 0, 512, 512); scene.background = new THREE.CanvasTexture(c); }
+const camera = new THREE.PerspectiveCamera(35, 1, 20, 3000);
+camera.position.set(-540, 70, -90);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.target.set(0, 0, 0);
+scene.add(new THREE.HemisphereLight(0xf2f6f8, 0x2a1d1a, 0.75));
+const key = new THREE.DirectionalLight(0xffffff, 0.75); key.position.set(-0.6, 1, 0.8); camera.add(key); scene.add(camera);
+const rim = new THREE.DirectionalLight(0xa9d8ee, 0.3); rim.position.set(1, -0.4, -1); scene.add(rim);
+
+// ---------- one mesh, morphing from the healthy (pre) shape to the aneurysm (post) ----------
+const P0 = dec(A.pre0, Float32Array), P1 = dec(A.pre1, Float32Array);
+const geo = new THREE.BufferGeometry();
+const pos = new Float32Array(P0);
+geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+geo.setIndex(new THREE.BufferAttribute(dec(A.preIdx, Uint32Array), 1));
+const solid = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ color: 0xd99c8f, roughness: 0.48, metalness: 0.0, clearcoat: 0.35, clearcoatRoughness: 0.4, side: THREE.DoubleSide }));
+scene.add(solid);
+
+// glass wall for the inside view: see-through face-on, opaque at the silhouette; back faces first, then front faces
+const wallVS = `varying vec3 vN; varying vec3 vV;
+void main(){ vN = normalMatrix * normal; vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = mv.xyz; gl_Position = projectionMatrix * mv; }`;
+const wallFS = `uniform vec3 col; uniform vec3 rimCol; varying vec3 vN; varying vec3 vV;
+void main(){
+  vec3 n = normalize(vN); vec3 v = normalize(-vV); if (dot(n, v) < 0.0) n = -n;
+  vec3 L = normalize(vec3(-0.45, 0.6, 0.65));
+  float diff = max(dot(n, L), 0.0), spec = pow(max(dot(reflect(-L, n), v), 0.0), 70.0), fres = pow(1.0 - max(dot(n, v), 0.0), 2.4);
+  vec3 c = mix(col * (0.42 + 0.6 * diff), rimCol, fres * 0.55) + vec3(0.22) * spec;   // tissue tone, deeper rose at the rim
+  gl_FragColor = vec4(c, clamp(0.08 + 0.92 * (fres * 0.8 + spec * 0.25), 0.0, 1.0));
+}`;
+const glass = new THREE.Group();
+for (const [side, order] of [[THREE.BackSide, 2], [THREE.FrontSide, 3]]) {
+  const m = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader: wallVS, fragmentShader: wallFS, transparent: true, depthWrite: false, side,
+    uniforms: { col: { value: new THREE.Color(0xe8b9aa) }, rimCol: { value: new THREE.Color(0xd0786c) } } }));
+  m.renderOrder = order; glass.add(m);
+}
+scene.add(glass);
+
+// ---------- blood flow: CFD pathlines from Pre/ and Post/, glowing pulses travelling at their particle age ----------
+const F = window.FLOW;
+const ramp = stops => v => { v = Math.min(1, Math.max(0, v)); for (let i = 1; i < stops.length; i++) if (v <= stops[i][0]) { const [a, ca] = stops[i - 1], [b, cb] = stops[i], f = (v - a) / (b - a); return ca.map((c, k) => c + (cb[k] - c) * f); } return stops[stops.length - 1][1]; };
+const hex = h => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16) / 255);
+const flowRamp = ramp([[0, hex('#2a4fa8')], [0.35, hex('#3fa7d6')], [0.7, hex('#bfeff7')], [1, hex('#fff3b0')]]);
+// Each pathline is drawn as a thin screen-space line coloured by CFD speed; light pulses travel along it with the
+// CFD particle age, so they move at the simulated speed. `fade` hides clipped segments;
+// `tint` colours the false-lumen flow instead of the speed ramp.
+const ribbonVS = `
+attribute vec3 a0; attribute vec3 b0; attribute vec3 a1; attribute vec3 b1;
+attribute vec2 ages; attribute vec2 spds; attribute vec2 corner; attribute float phase; attribute float fade;
+uniform float morph; uniform float width; uniform vec2 res;
+varying float vAge; varying float vSpd; varying float vSide; varying float vPhase; varying float vFade;
+void main(){
+  vec4 A = projectionMatrix * modelViewMatrix * vec4(mix(a0, a1, morph), 1.0);
+  vec4 B = projectionMatrix * modelViewMatrix * vec4(mix(b0, b1, morph), 1.0);
+  vec2 sa = A.xy / A.w * res, sb = B.xy / B.w * res;
+  vec2 d = sb - sa; float L = length(d); d = L > 1e-4 ? d / L : vec2(1.0, 0.0);
+  vec2 n = vec2(-d.y, d.x);
+  vec4 P = corner.x < 0.5 ? A : B;
+  P.xy += n * corner.y * width / res * P.w;
+  gl_Position = P;
+  vAge = mix(ages.x, ages.y, corner.x); vSpd = mix(spds.x, spds.y, corner.x); vSide = corner.y; vPhase = phase; vFade = fade;
+}`;
+const ribbonFS = `
+uniform float time; uniform float alpha; uniform float period; uniform vec3 tint; uniform float tintAmt;
+varying float vAge; varying float vSpd; varying float vSide; varying float vPhase; varying float vFade;
+vec3 ramp(float v){ v = clamp(v, 0.0, 1.0);
+  vec3 a = vec3(0.165,0.31,0.66), b = vec3(0.25,0.655,0.84), c = vec3(0.75,0.937,0.97), d = vec3(1.0,0.953,0.69);
+  return v < 0.35 ? mix(a,b,v/0.35) : v < 0.7 ? mix(b,c,(v-0.35)/0.35) : mix(c,d,(v-0.7)/0.3); }
+void main(){
+  float edge = 1.0 - vSide * vSide;                       // soft ribbon edges
+  float ph = fract((time - vAge) / period + vPhase);       // 0 = pulse head, rising = tail
+  float pulse = exp(-ph * 9.0) + 0.5 * exp(-(1.0 - ph) * 60.0);
+  float glow = 0.2 + 0.85 * pulse;                         // faint continuous stream + travelling pulses
+  vec3 col = mix(ramp(vSpd / 1000.0), mix(tint, vec3(1.0, 0.93, 0.78), 0.35 * glow), tintAmt);
+  float a = alpha * edge * glow * vFade;
+  gl_FragColor = vec4(col * a, a);
+}`;
+const ribbonUniforms = (tintAmt = 0) => ({ morph: { value: 0 }, width: { value: 1.6 }, res: { value: new THREE.Vector2(1, 1) }, time: { value: 0 }, alpha: { value: 1 },
+  period: { value: 0.16 }, tint: { value: new THREE.Vector3(1.0, 0.62, 0.28) }, tintAmt: { value: tintAmt } });
+const ribbonMaterial = tintAmt => new THREE.ShaderMaterial({ vertexShader: ribbonVS, fragmentShader: ribbonFS, transparent: true, depthWrite: false,
+  blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: ribbonUniforms(tintAmt) });
+// CFD points are 10 ms apart, i.e. up to 10 mm at peak speed: subdivide every line with a Catmull-Rom spline
+// (positions) and linear interpolation (age, speed), so the pathlines read as curves instead of polygons.
+const SPLINE_SUB = 4;
+function splineLines(off, chans) {
+  const outOff = [0], outs = chans.map(() => []), orig = [];
+  for (let l = 0; l < off.length - 1; l++) {
+    const a = off[l], n = off[l + 1] - a;
+    const emit = (i, t) => chans.forEach(({ arr, k, curve }, c) => {
+      for (let d = 0; d < k; d++) {
+        const P = j => arr[(a + j) * k + d];
+        const p1 = P(i), p2 = P(Math.min(i + 1, n - 1));
+        if (!curve) { outs[c].push(p1 + (p2 - p1) * t); continue; }
+        const p0 = i > 0 ? P(i - 1) : 2 * p1 - p2, p3 = i + 2 < n ? P(i + 2) : 2 * p2 - p1;
+        outs[c].push(0.5 * (2 * p1 + (p2 - p0) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (3 * p1 - p0 - 3 * p2 + p3) * t * t * t));
+      }
+    });
+    if (n >= 2) {
+      for (let i = 0; i < n - 1; i++) for (let s = 0; s < SPLINE_SUB; s++) { emit(i, s / SPLINE_SUB); orig.push(a + i); }
+      emit(n - 2, 1); orig.push(a + n - 2);
+    }
+    outOff.push(outs[0].length / chans[0].k);
+  }
+  return { off: outOff, arrs: outs.map(o => new Float32Array(o)), orig };
+}
+function flowSet(L) {
+  const raw0 = dec(L.p0, Float32Array), raw1 = dec(L.p1, Float32Array);
+  const S = splineLines(L.off, [{ arr: raw0, k: 3, curve: true }, { arr: raw1, k: 3, curve: true },
+    { arr: dec(L.age, Float32Array), k: 1 }, { arr: dec(L.spd, Float32Array), k: 1 }]);
+  const [p0, p1, age, spd] = S.arrs, off = S.off, orig = S.orig;
+  const nL = off.length - 1; let nS = 0;
+  for (let l = 0; l < nL; l++) nS += Math.max(0, off[l + 1] - off[l] - 1);
+  const V = nS * 4, buf = k => new Float32Array(V * k);
+  const A0 = buf(3), B0 = buf(3), A1 = buf(3), B1 = buf(3), AG = buf(2), SP = buf(2), CO = buf(2), PH = buf(1), FD = buf(1).fill(1), idx = new Uint32Array(nS * 6);
+  const segStart = new Uint32Array(nS);
+  let q = 0;
+  const corners = [[0, -1], [0, 1], [1, -1], [1, 1]];
+  for (let l = 0; l < nL; l++) {
+    const phase = (l * 0.6180339) % 1;
+    for (let i = off[l]; i < off[l + 1] - 1; i++, q++) {
+      segStart[q] = orig[i];   // original CFD segment, used for clipping
+      for (let c = 0; c < 4; c++) {
+        const v = q * 4 + c;
+        for (let k = 0; k < 3; k++) { A0[v*3+k] = p0[i*3+k]; B0[v*3+k] = p0[(i+1)*3+k]; A1[v*3+k] = p1[i*3+k]; B1[v*3+k] = p1[(i+1)*3+k]; }
+        AG[v*2] = age[i]; AG[v*2+1] = age[i+1]; SP[v*2] = spd[i]; SP[v*2+1] = spd[i+1];
+        CO[v*2] = corners[c][0]; CO[v*2+1] = corners[c][1]; PH[v] = phase;
+      }
+      idx.set([q*4, q*4+1, q*4+2, q*4+2, q*4+1, q*4+3], q * 6);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  const at = (n, a, k) => g.setAttribute(n, new THREE.BufferAttribute(a, k));
+  at('position', A0, 3); at('a0', A0, 3); at('b0', B0, 3); at('a1', A1, 3); at('b1', B1, 3); at('ages', AG, 2); at('spds', SP, 2); at('corner', CO, 2); at('phase', PH, 1); at('fade', FD, 1);
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  const mat = ribbonMaterial(0);
+  const mesh = new THREE.Mesh(g, mat); mesh.renderOrder = 1; mesh.frustumCulled = false; scene.add(mesh);
+  function update(time, m, alpha, on) {
+    mesh.visible = on && alpha > 0.003;
+    mat.uniforms.time.value = time; mat.uniforms.morph.value = m; mat.uniforms.alpha.value = alpha;
+  }
+  // vis: per original CFD point 1 = shown, 0 = hidden; a segment is shown only if both ends of its CFD segment are
+  function clip(vis) {
+    let changed = false;
+    for (let q = 0; q < nS; q++) {
+      const f = vis[segStart[q]] & vis[segStart[q] + 1];
+      if (FD[q * 4] !== f) { FD[q * 4] = FD[q * 4 + 1] = FD[q * 4 + 2] = FD[q * 4 + 3] = f; changed = true; }
+    }
+    if (changed) g.attributes.fade.needsUpdate = true;
+  }
+  return { update, mat, clip, n: raw0.length / 3 };
+}
+// Flow lines whose points are rebuilt on the CPU (they follow the moving flap); lens = points per line
+function dynFlow(lens) {
+  const nQ = lens.reduce((n, l) => n + Math.max(0, l - 1), 0), V = nQ * 4;
+  const A = new Float32Array(V * 3), B = new Float32Array(V * 3), AG = new Float32Array(V * 2), SP = new Float32Array(V * 2), FD = new Float32Array(V);
+  const CO = new Float32Array(V * 2), PH = new Float32Array(V), idx = new Uint32Array(nQ * 6);
+  const corners = [[0, -1], [0, 1], [1, -1], [1, 1]];
+  let q = 0;
+  lens.forEach((len, l) => {
+    for (let j = 0; j < len - 1; j++, q++) {
+      corners.forEach((c, k) => { CO.set(c, (q * 4 + k) * 2); PH[q * 4 + k] = (l * 0.6180339) % 1; });
+      idx.set([q*4, q*4+1, q*4+2, q*4+2, q*4+1, q*4+3], q * 6);
+    }
+  });
+  const g = new THREE.BufferGeometry();
+  const at = (n, a, k) => { const b = new THREE.BufferAttribute(a, k); g.setAttribute(n, b); return b; };
+  const Ab = at('a0', A, 3), Bb = at('b0', B, 3);
+  g.setAttribute('position', Ab); g.setAttribute('a1', Ab); g.setAttribute('b1', Bb);
+  at('ages', AG, 2); at('spds', SP, 2); at('corner', CO, 2); at('phase', PH, 1); at('fade', FD, 1);
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  const mat = ribbonMaterial(1);
+  const mesh = new THREE.Mesh(g, mat); mesh.renderOrder = 3.25; mesh.frustumCulled = false;
+  // P: xyz per point, G: age, S: speed, Fd: fade, all concatenated in line order
+  function write(P, G, S, Fd) {
+    let q = 0, i0 = 0;
+    for (const len of lens) {
+      for (let i = i0; i < i0 + len - 1; i++, q++) for (let c = 0; c < 4; c++) {
+        const v = q * 4 + c;
+        for (let k = 0; k < 3; k++) { A[v * 3 + k] = P[i * 3 + k]; B[v * 3 + k] = P[(i + 1) * 3 + k]; }
+        AG[v * 2] = G[i]; AG[v * 2 + 1] = G[i + 1]; SP[v * 2] = S[i]; SP[v * 2 + 1] = S[i + 1];
+        FD[v] = Math.min(Fd[i], Fd[i + 1]);
+      }
+      i0 += len;
+    }
+    for (const n of ['a0', 'b0', 'ages', 'spds', 'fade']) g.attributes[n].needsUpdate = true;
+  }
+  return { mesh, mat, write };
+}
+// ---------- one continuous inner wall, using the actual vessel topology ----------
+// Post membrane vertices are not loaded or rendered by the application.
+const WF = window.WALL_FLAP;
+const FW0 = dec(WF.inner0, Float32Array), FW1 = dec(WF.inner1, Float32Array);
+const FT0 = dec(WF.target0, Float32Array), FT1 = dec(WF.target1, Float32Array);
+const flapProgress = dec(WF.progress, Float32Array), flapBoundary = dec(WF.boundary, Uint8Array);
+const wallPeelWeight = dec(WF.weight, Float32Array);
+const W = window.WALL_LAYERS;
+let layersOn = true, cutOn = false;
+const flapGeo = new THREE.BufferGeometry(), flapPos = new Float32Array(FW0);
+flapGeo.setAttribute('position', new THREE.BufferAttribute(flapPos, 3));
+const flapExposure = new Float32Array(FW0.length / 3);
+flapGeo.setAttribute('exposure', new THREE.BufferAttribute(flapExposure, 1));
+flapGeo.setAttribute('arc', new THREE.BufferAttribute(flapProgress, 1));
+// Render the tissue without a scene-wide depth-only occluder.
+const flapVS = wallVS.replace('void main(){', 'attribute float exposure; attribute float arc; varying float vArc; varying float vExposure; varying vec3 vLocal; void main(){ vArc=arc; vExposure = exposure; vLocal = position;');
+const flapView = {cut:{value:1},entry:{value:new THREE.Vector3()},tear:{value:0}};
+const flapClip = `uniform float cut; uniform vec3 entry; uniform float tear; varying vec3 vLocal; varying float vArc;
+void clipTissue(){
+ if(cut>.5 && vExposure<.015 && vArc>.12 && vLocal.x < -3.) discard;
+ if(tear>0. && distance(vLocal,entry)<tear) discard;
+}`;
+flapGeo.setIndex(geo.index); // exactly the same triangles and vertex IDs as the vessel
+const flapFS = `uniform vec3 col; uniform float alpha; varying vec3 vN; varying vec3 vV; varying float vExposure;
+${flapClip}
+void main(){
+  clipTissue();
+  vec3 n = normalize(vN); vec3 v = normalize(-vV); if (dot(n, v) < 0.0) n = -n;
+  vec3 L = normalize(vec3(-0.45, 0.6, 0.65));
+  float diff = max(dot(n, L), 0.0), spec = pow(max(dot(reflect(-L, n), v), 0.0), 40.0), fres = pow(1.0 - max(dot(n, v), 0.0), 1.8);
+  vec3 tissue = gl_FrontFacing ? col : mix(col, vec3(.72,.36,.46), .42);
+  vec3 c = tissue * (0.46 + 0.48 * diff) + vec3(0.12) * spec;
+  if(tear>0. && distance(vLocal,entry)<tear+.55) c=vec3(.9,.27,.22);
+  gl_FragColor = vec4(c, alpha * mix(.07 + .15 * fres, .62 + .2 * fres, smoothstep(0., .5, vExposure)));
+}`;
+const flapMat = new THREE.ShaderMaterial({ vertexShader: flapVS, fragmentShader: flapFS, transparent: true, depthWrite: false,
+  depthFunc: THREE.LessEqualDepth, side: THREE.DoubleSide, uniforms: { ...flapView, col: { value: new THREE.Color(0xf1d3a1) }, alpha: { value: 0 } } });
+const flapSkin = new THREE.Mesh(flapGeo, flapMat);
+flapSkin.renderOrder = 1.6;
+const flap = new THREE.Group(); flap.add(flapSkin); scene.add(flap);
+let flapOn = true;
+function updateFlap(tt, m) {
+  // The complete inner wall exists from the first frame. Only a connected
+  // patch changes position; border vertices are shared with the remaining wall.
+  for (let i = 0; i < flapPos.length; i += 3) {
+    const vertex = i / 3, along = flapProgress[vertex];
+    const peel = smooth(0.10 + along * 0.22, 0.27 + along * 0.22, tt);
+    flapExposure[vertex] = peel * wallPeelWeight[vertex];
+    for (let k = 0; k < 3; k++) {
+      const wall = FW0[i + k] + (FW1[i + k] - FW0[i + k]) * m;
+      const target = FT0[i + k] + (FT1[i + k] - FT0[i + k]) * m;
+      flapPos[i + k] = wall + (target - wall) * peel;
+    }
+  }
+  flapGeo.attributes.exposure.needsUpdate = true;
+  flapGeo.attributes.position.needsUpdate = true; flapGeo.computeVertexNormals(); flapGeo.computeBoundingSphere();
+  if (lumenOn) {                                    // outer boundary of the false lumen: the unpeeled wall position
+    for (let i = 0; i < lumenOuterPos.length; i++) lumenOuterPos[i] = FW0[i] + (FW1[i] - FW0[i]) * m;
+    lumenOuterGeo.attributes.position.needsUpdate = true; lumenOuterGeo.computeVertexNormals();
+  }
+  const a = 0.78; // The future flap is already part of the wall in Pre.
+  flapMat.uniforms.alpha.value = a;
+  flap.visible = flapOn && a > 0.002;
+}
+// ---------- optional colouring of true and false lumen ----------
+// True lumen: everything enclosed by the inner wall including the peeled flap (same mesh as the flap).
+// False lumen: the space between flap and the unpeeled wall position; drawn on that outer wall where the wall
+// has actually peeled. Translucent with a rim glow, so they read as volumes and the flow stays visible.
+let lumenOn = false;
+const lumenVS = `attribute float exposure; varying float vExposure; varying vec3 vN; varying vec3 vV;
+void main(){ vExposure = exposure; vN = normalMatrix * normal; vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = mv.xyz; gl_Position = projectionMatrix * mv; }`;
+const lumenFS = `uniform vec3 col; uniform float alpha; uniform float peeledOnly; varying float vExposure; varying vec3 vN; varying vec3 vV;
+void main(){
+  if (peeledOnly > 0.5 && vExposure < 0.05) discard;
+  float rim = pow(1.0 - abs(dot(normalize(vN), normalize(-vV))), 1.6);
+  float a = alpha * (0.16 + 0.6 * rim) * (peeledOnly > 0.5 ? smoothstep(0.05, 0.4, vExposure) : 1.0);
+  gl_FragColor = vec4(col * (0.6 + 0.6 * rim), a);
+}`;
+const lumenMat = (hex, peeledOnly) => new THREE.ShaderMaterial({ vertexShader: lumenVS, fragmentShader: lumenFS, transparent: true, depthWrite: false,
+  side: THREE.DoubleSide, uniforms: { col: { value: new THREE.Color(hex) }, alpha: { value: 0.85 }, peeledOnly: { value: peeledOnly } } });
+const trueLumen = new THREE.Mesh(flapGeo, lumenMat(0x3d8bfd, 0));
+trueLumen.renderOrder = 1.7;
+const lumenOuterGeo = new THREE.BufferGeometry(), lumenOuterPos = new Float32Array(FW0);
+lumenOuterGeo.setAttribute('position', new THREE.BufferAttribute(lumenOuterPos, 3));
+lumenOuterGeo.setAttribute('exposure', flapGeo.attributes.exposure);
+{
+  const idx = flapGeo.index.array, tri = [];
+  for (let f = 0; f < idx.length; f += 3)
+    if (wallPeelWeight[idx[f]] > 0 || wallPeelWeight[idx[f + 1]] > 0 || wallPeelWeight[idx[f + 2]] > 0) tri.push(idx[f], idx[f + 1], idx[f + 2]);
+  lumenOuterGeo.setIndex(tri);
+}
+const falseLumen = new THREE.Mesh(lumenOuterGeo, lumenMat(0xd9466f, 1));
+falseLumen.renderOrder = 1.65; falseLumen.frustumCulled = false;
+trueLumen.visible = falseLumen.visible = false;
+scene.add(trueLumen, falseLumen);
+
+// ---------- flow in the false lumen: real Post-CFD pathlines and the modelled jet through the tear ----------
+// Precomputed for every timeline sample by pipeline/export_false_lumen_flow.py against the exact wall state of this
+// page: every shown point lies inside the false lumen between flap and outer wall, so no blood crosses a wall.
+// The real Post-CFD flow keeps its real positions (vortices) at the end and follows flap and wall before.
+// True-lumen pathlines are hidden wherever they would lie in the false lumen.
+const FLF = window.FALSE_LUMEN_FLOW, FL_T = FLF.times;
+const sampleAt = tt => { const x = Math.min(1, Math.max(0, tt)) * (FL_T - 1), i0 = Math.min(FL_T - 2, Math.floor(x)); return [i0, x - i0]; };
+function sampledFlow(D, tint, spline) {
+  const lens = D.off.slice(1).map((o, i) => o - D.off[i]);
+  const drawn = spline ? lens.map(n => n < 2 ? 0 : (n - 1) * SPLINE_SUB + 1) : lens;
+  const pos = dec(D.pos, Float32Array), fade = dec(D.fade, Uint8Array), age = dec(D.age, Float32Array);
+  const n = age.length, spd = D.spd ? dec(D.spd, Float32Array) : new Float32Array(n).fill(D.speed);
+  const r = dynFlow(drawn); r.mat.uniforms.tint.value.set(...tint); scene.add(r.mesh);
+  const P = new Float32Array(n * 3), F = new Float32Array(n);
+  function update(tt) {
+    const [i0, f] = sampleAt(tt), a = i0 * n, b = a + n;
+    for (let i = 0; i < n; i++) {
+      for (let k = 0; k < 3; k++) P[i * 3 + k] = pos[(a + i) * 3 + k] + (pos[(b + i) * 3 + k] - pos[(a + i) * 3 + k]) * f;
+      F[i] = Math.min(fade[a + i], fade[b + i]) / 255;   // hidden if outside the false lumen at either sample
+    }
+    if (!spline) { r.write(P, age, spd, F); return; }
+    const c = splineLines(D.off, [{ arr: P, k: 3, curve: true }, { arr: age, k: 1 }, { arr: spd, k: 1 }, { arr: F, k: 1 }]).arrs;
+    r.write(c[0], c[1], c[2], c[3]);
+  }
+  return { update, mesh: r.mesh, mat: r.mat };
+}
+const flReal = sampledFlow(FLF.falseLumen, [1.0, 0.52, 0.22], false);   // already spline-smoothed offline
+const flJet = sampledFlow(FLF.jet, [1.0, 0.68, 0.34], true);
+flJet.mat.uniforms.alpha.value = 0.9;    // inflow and recirculation in the false lumen: clearly visible, but 7 lines share one small opening
+const clipBits = { pre: dec(FLF.clip.pre, Uint8Array), post: dec(FLF.clip.post, Uint8Array), branch: dec(FLF.clip.branch, Uint8Array) };
+function updateFlowClip(tt) {
+  const [i0] = sampleAt(tt);
+  for (const [set, bits] of [[flowPre, clipBits.pre], [flowPost, clipBits.post], [flowBranch, clipBits.branch]]) {
+    const row = Math.ceil(set.n / 8), vis = new Uint8Array(set.n).fill(1);
+    if (flapOn) for (let i = 0; i < set.n; i++) {
+      const byte = i >> 3, bit = 1 << (i & 7);
+      if ((bits[i0 * row + byte] | bits[(i0 + 1) * row + byte]) & bit) vis[i] = 0;
+    }
+    set.clip(vis);
+  }
+}
+function updateFalseLumenFlow(tt) { flReal.update(tt); flJet.update(tt); }
+
+// ---------- three modelled wall layers on the actual Pre/Post wall ----------
+const N0 = dec(W.n0, Float32Array), N1 = dec(W.n1, Float32Array);
+const TH0 = dec(W.thickness0, Float32Array), TH1 = dec(W.thickness1, Float32Array);
+const patchMask = dec(W.patch, Float32Array), wallProgress = dec(W.progress, Float32Array);
+const anatomy = new THREE.Group(); scene.add(anatomy);
+const layerGeo = geo.clone();
+layerGeo.setAttribute('position', geo.attributes.position);
+layerGeo.setAttribute('wallNormal', new THREE.BufferAttribute(new Float32Array(N0), 3));
+layerGeo.setAttribute('thickness', new THREE.BufferAttribute(new Float32Array(TH0), 1));
+layerGeo.setAttribute('patch', new THREE.BufferAttribute(patchMask, 1));
+layerGeo.setAttribute('along', new THREE.BufferAttribute(wallProgress, 1));
+const layerVS = `attribute vec3 wallNormal; attribute float thickness; attribute float patch; attribute float along;
+uniform float depth; varying vec3 vN; varying vec3 vV; varying vec3 vLocal; varying float vPatch; varying float vAlong;
+void main(){ vec3 p = position - normalize(wallNormal) * thickness * depth;
+ vLocal=p; vPatch=patch; vAlong=along; vN=normalMatrix*wallNormal;
+ vec4 mv=modelViewMatrix*vec4(p,1.0); vV=mv.xyz; gl_Position=projectionMatrix*mv; }`;
+const layerFS = `uniform vec3 col; uniform float stage; uniform float depth; uniform float cut;
+uniform vec3 entry; uniform float tear; varying vec3 vN; varying vec3 vV; varying vec3 vLocal; varying float vPatch; varying float vAlong;
+void main(){
+ // A longitudinal viewing window removes all three layers together. It is not the tear.
+ if(cut > .5 && vAlong > .12 && vLocal.x < -3.0) discard;
+ float peel = smoothstep(.10 + vAlong*.22, .27 + vAlong*.22, stage);
+ // The inner wall patch becomes the flap; the outer part of the media remains.
+ if(depth > .85 && vPatch > .35 && peel > .02) discard;
+ // Local modelled entry in the intima, separate from the viewing window.
+ if(depth > .85 && distance(vLocal,entry) < tear) discard;
+ vec3 n=normalize(vN), v=normalize(-vV); if(dot(n,v)<0.)n=-n;
+ float light=.42+.58*max(dot(n,normalize(vec3(-.45,.6,.65))),0.);
+ float rim=pow(1.-abs(dot(n,v)),2.);
+ gl_FragColor=vec4(col*light, cut>.5 ? .38 : .13+.45*rim);
+}`;
+const layerMaterials = [];
+for (const [depth, color] of [[0,0xd18b86],[.25,0xb86981]]) {
+ const mat = new THREE.ShaderMaterial({vertexShader:layerVS, fragmentShader:layerFS,
+   transparent:true, depthWrite:false, side:THREE.DoubleSide,
+   uniforms:{depth:{value:depth},col:{value:new THREE.Color(color)},stage:{value:0},cut:{value:1},entry:{value:new THREE.Vector3()},tear:{value:0}}});
+ const mesh = new THREE.Mesh(layerGeo,mat); mesh.renderOrder=2+depth; mesh.frustumCulled=false;
+ anatomy.add(mesh);layerMaterials.push(mat);
+}
+// Thick coloured cut edges expose the modelled subdivisions of the same wall.
+const rimGeo = new THREE.BufferGeometry();
+const rimPositions = new Float32Array(geo.index.count * 18);
+const rimColors = new Float32Array(rimPositions.length);
+rimGeo.setAttribute('position',new THREE.BufferAttribute(rimPositions,3));
+rimGeo.setAttribute('color',new THREE.BufferAttribute(rimColors,3));
+const cutRim = new THREE.Mesh(rimGeo,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide,transparent:true,opacity:.7,depthWrite:false}));
+cutRim.frustumCulled=false;cutRim.renderOrder=4;anatomy.add(cutRim);
+const cuts = [[0,.25,new THREE.Color(0xd18b86)],[.25,.9,new THREE.Color(0xb86981)],[.9,1,new THREE.Color(0xf1d3a1)]];
+function updateLayers(tt,m) {
+ const n=layerGeo.attributes.wallNormal.array, thick=layerGeo.attributes.thickness.array;
+ for(let i=0;i<n.length;i++) n[i]=N0[i]+(N1[i]-N0[i])*m;
+ for(let i=0;i<thick.length;i++) thick[i]=TH0[i]+(TH1[i]-TH0[i])*m;
+ layerGeo.attributes.wallNormal.needsUpdate=true;layerGeo.attributes.thickness.needsUpdate=true;
+ const j=WF.entryVertex*3;
+ const entry=new THREE.Vector3(flapPos[j],flapPos[j+1],flapPos[j+2]);
+ flapView.cut.value=layersOn&&cutOn?1:0;
+ flapView.entry.value.copy(entry);
+ flapView.tear.value=flapOn?2.2*smooth(.08,.16,tt):0;
+ for(const mat of layerMaterials){mat.uniforms.stage.value=tt;mat.uniforms.cut.value=cutOn?1:0;mat.uniforms.entry.value.copy(entry);mat.uniforms.tear.value=3*smooth(.08,.16,tt);}
+ cutRim.visible=cutOn;
+ let count=0;
+ if(cutOn && layersOn){
+ const idx=geo.index.array;
+ for(let f=0;f<idx.length;f+=3){
+   for(let plane=0;plane<2;plane++){
+   const hits=[];
+   for(let e=0;e<3;e++){
+     const a=idx[f+e],b=idx[f+(e+1)%3],da=plane===0?pos[a*3]+3:wallProgress[a]-.12,db=plane===0?pos[b*3]+3:wallProgress[b]-.12;
+     if((da<0)===(db<0))continue;
+     const u=da/(da-db);const point=[],inset=[];
+     for(let k=0;k<3;k++){point[k]=pos[a*3+k]+(pos[b*3+k]-pos[a*3+k])*u;inset[k]=n[a*3+k]*thick[a]+(n[b*3+k]*thick[b]-n[a*3+k]*thick[a])*u;}
+     hits.push({point,inset,arc:wallProgress[a]+(wallProgress[b]-wallProgress[a])*u});
+   }
+   if(hits.length!==2)continue;
+   if(plane===0 && hits.every(h=>h.arc<=.12))continue;
+   if(plane===1 && hits.every(h=>h.point[0]>=-3))continue;
+   for(const [d0,d1,color] of cuts){
+     const corners=[];
+     for(const [h,d] of [[hits[0],d0],[hits[1],d0],[hits[1],d1],[hits[0],d1]])corners.push(h.point.map((v,k)=>v-h.inset[k]*d));
+     for(const v of [0,1,2,0,2,3]){rimPositions.set(corners[v],count);rimColors.set([color.r,color.g,color.b],count);count+=3;}
+   }
+   }
+ }
+ }
+ rimGeo.setDrawRange(0,count/3);rimGeo.attributes.position.needsUpdate=true;rimGeo.attributes.color.needsUpdate=true;
+}
+
+const flowPre = flowSet(F.pre), flowPost = flowSet(F.post), flowBranch = flowSet(F.branch);
+let flowOn = true, morph = 0, flowFade = 0;
+const smooth = (a, b, x) => { x = Math.min(1, Math.max(0, (x - a) / (b - a))); return x * x * (3 - 2 * x); };
+function setView() {
+  // Keep the complete vessel as context; layer inspection must not replace it.
+  anatomy.visible = layersOn && cutOn;
+  ui('o-cut').disabled = !layersOn;
+  solid.visible = !layersOn && !flowOn && !flapOn && !lumenOn;
+  glass.visible = !solid.visible;
+  trueLumen.visible = lumenOn; falseLumen.visible = lumenOn && flapOn;
+  document.querySelectorAll('.lumen-key').forEach(el => { el.hidden = !lumenOn; });
+}
+setView();
+ui('o-flow').onchange = e => { flowOn = e.target.checked; setView(); };
+ui('o-layers').onchange = e => { layersOn = e.target.checked; setView(); lastT = -1; };
+ui('o-cut').onchange = e => { cutOn = e.target.checked; setView(); lastT = -1; };
+ui('o-spin').onchange = e => { controls.autoRotate = e.target.checked; };
+ui('o-flap').onchange = e => { flapOn = e.target.checked; setView(); lastT = -1; };
+ui('o-lumen').onchange = e => { lumenOn = e.target.checked; setView(); lastT = -1; };
+let flowRate = 1;
+ui('o-rate').oninput = e => { flowRate = +e.target.value; ui('rate-val').textContent = flowRate >= 0.999 ? 'Echtzeit' : 'Zeitlupe ' + flowRate.toFixed(2).replace('.', ',') + '×'; };
+controls.autoRotateSpeed = 0.6; controls.minDistance = 160; controls.maxDistance = 1400;
+
+// ---------- timeline ----------
+const tIn = ui('t');
+let t = 0, playing = !reduceMotion, lastT = -1;
+const ease = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const chapters = [
+  [0.00, 'Gesund', 'Gesunde Aorta', 'Intima, Media und Adventitia liegen aneinander. Der geöffnete Ansichtsschnitt zeigt ihre modellierte Aufteilung am Pre-Gefäß.'],
+  [0.08, 'Einriss', 'Einriss der Innenwand', 'Ein modellierter Einriss öffnet die Intima. Die Wand spaltet sich innerhalb der Media; Intima und ein Anteil der Media lösen sich als Flap ab.'],
+  [0.35, 'Erweiterung', 'Das falsche Lumen weitet sich', 'Der Blutdruck dehnt die geschwächte Außenwand. Die Aorta wird deutlich weiter und auch länger.'],
+  [0.70, 'Aneurysma', 'Aneurysma', 'Die geschwächte Aorta erweitert sich aneurysmatisch. Der Flap bleibt als Trennwand zwischen wahrem und falschem Lumen bestehen. Gezeigt ist ein möglicher Verlauf nach einer Dissektion.'],
+];
+const ticks = ui('ticks');
+chapters.forEach(([a, short], i) => { const b = document.createElement('button'); b.textContent = short; b.style.left = (a * 100) + '%'; b.dataset.a = a;
+  b.onclick = () => { t = i === 0 ? 0 : Math.min(1, a + 0.02); tIn.value = t; setPlay(false); }; ticks.appendChild(b); });
+let curChapter = -1;
+function applyT(tt) {
+  const m = smooth(0.32, 1, tt);
+  for (let i = 0; i < pos.length; i++) pos[i] = P0[i] + (P1[i] - P0[i]) * m;
+  geo.attributes.position.needsUpdate = true;
+  geo.computeVertexNormals(); geo.computeBoundingSphere();
+  morph = m; flowFade = smooth(0.35, 0.75, tt); updateFlap(tt, m); updateLayers(tt,m); updateFlowClip(tt); updateFalseLumenFlow(tt);
+  ui('vel').textContent = Math.round(F.vPre + (F.vPost - F.vPre) * flowFade) + ' mm/s';
+  ui('prog').textContent = 'Verlauf ' + Math.round(tt * 100) + ' %';
+  let ci = 0; chapters.forEach(([a], i) => { if (tt >= a) ci = i; });
+  if (ci !== curChapter) { curChapter = ci; const [, , title, text] = chapters[ci];
+    ui('ch-num').textContent = ci + 1; ui('ch-title').textContent = title; ui('ch-text').textContent = text; }
+  ticks.querySelectorAll('button').forEach((b, i) => { b.classList.toggle('on', tt >= +b.dataset.a); b.classList.toggle('cur', i === ci); });
+}
+const setPlay = p => { playing = p; ui('play').setAttribute('aria-label', p ? 'Pause' : 'Abspielen');
+  ui('play-icon').innerHTML = p ? '<rect x="4" y="3" width="4" height="14"/><rect x="12" y="3" width="4" height="14"/>' : '<path d="M5 3 L17 10 L5 17 Z"/>'; };
+setPlay(playing);
+ui('play').onclick = () => { if (!playing && t >= 1) { t = 0; } setPlay(!playing); };
+tIn.oninput = () => { t = +tIn.value; setPlay(false); };
+
+// post-processing: restrained bloom for the brightest flow pulses; MSAA target (WebGL2) or FXAA keeps edges clean
+const rt = renderer.capabilities.isWebGL2 ? new THREE.WebGLMultisampleRenderTarget(1, 1, { format: THREE.RGBAFormat }) : undefined;
+const composer = new THREE.EffectComposer(renderer, rt);
+composer.addPass(new THREE.RenderPass(scene, camera));
+const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(1, 1), 0.28, 0.4, 0.85);
+composer.addPass(bloom);
+const fxaa = new THREE.ShaderPass(THREE.FXAAShader); fxaa.enabled = !rt; composer.addPass(fxaa);
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h;
+  composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); bloom.setSize(w, h);
+  fxaa.material.uniforms.resolution.value.set(1 / (w * renderer.getPixelRatio()), 1 / (h * renderer.getPixelRatio()));
+  camera.position.setLength(w < 720 ? 700 : 560); camera.updateProjectionMatrix();
+  for (const f of [flowPre, flowPost, flowBranch, flReal, flJet]) { f.mat.uniforms.res.value.set(w * renderer.getPixelRatio() / 2, h * renderer.getPixelRatio() / 2); f.mat.uniforms.width.value = 2.0 * renderer.getPixelRatio(); }
+  flJet.mat.uniforms.width.value = 2.8 * renderer.getPixelRatio(); }
+addEventListener('resize', resize); resize();
+
+const clock = new THREE.Clock(); let flowTime = 0;
+const DUR = 18;   // illustrative duration, not clinical time
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (playing) {
+    t = Math.min(1, t + dt / DUR);
+    if (t >= 1) setPlay(false);
+    tIn.value = t;
+  }
+  if (t !== lastT) { applyT(t); lastT = t; }
+  flowTime += dt * flowRate;      // 1 = real time of the CFD particle age
+  flowPre.update(flowTime, morph, 1 - flowFade, flowOn); flowPost.update(flowTime, morph, flowFade, flowOn);
+  flowBranch.update(flowTime, morph, 1, flowOn);
+  for (const f of [flReal, flJet]) { f.mesh.visible = flowOn && flapOn; f.mat.uniforms.time.value = flowTime; }
+  controls.update(); composer.render();
+  requestAnimationFrame(frame);
+}
+ui('loading').hidden = true;
+tIn.value = t;
+frame();
+})();
+</script>
+
+</body>
+</html>
