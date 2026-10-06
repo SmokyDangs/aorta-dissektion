@@ -71,6 +71,23 @@ input[type=range] { accent-color: var(--accent); width: 100%; margin: 0; }
 .ticks button.on { color: var(--fg); }
 .ticks button.cur { color: var(--accent); }
 
+/* intro: skip / replay link in the chapter card, dimmed timeline while the camera flies in */
+#intro-btn { margin-top: 12px; background: none; border: 1px solid var(--line); border-radius: 999px; color: var(--accent); font: 13px var(--font-ui); letter-spacing: 0.04em; padding: 5px 12px; cursor: pointer; }
+#intro-btn:hover { border-color: var(--accent); }
+#intro-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+body.intro #timeline, body.intro #opts { opacity: 0.45; transition: opacity .6s; }
+#timeline, #opts { transition: opacity .6s; }
+
+/* callouts anchored to points in the 3D scene */
+#callouts { position: fixed; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
+.callout { position: absolute; left: 0; top: 0; opacity: 0; transition: opacity .5s; will-change: transform; }
+.callout .dot { position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--fg); box-shadow: 0 0 0 3px rgba(230, 236, 239, 0.18), 0 0 12px rgba(127, 211, 230, 0.6); }
+.callout .lead { position: absolute; height: 1px; background: linear-gradient(90deg, rgba(230,236,239,.85), rgba(230,236,239,.35)); transform-origin: 0 50%; }
+.callout .tag { position: absolute; white-space: nowrap; padding: 4px 9px 5px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: 13.5px; line-height: 1.25; color: var(--fg); }
+.callout .tag small { display: block; font-size: 11.5px; color: var(--muted); }
+.callout.warn .dot { background: #ff7a5c; box-shadow: 0 0 0 3px rgba(255, 122, 92, 0.22), 0 0 12px rgba(255, 122, 92, 0.7); }
+
 #loading { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); font: 13px var(--font-data); z-index: 1; }
 #loading[hidden] { display: none; }
 @media (max-width: 760px) {
@@ -80,6 +97,8 @@ input[type=range] { accent-color: var(--accent); width: 100%; margin: 0; }
   #opts .toggle { font-size: 13px; }
   #info { padding: 14px 16px; } h1 { font-size: 21px; margin-bottom: 10px; } #ch-text, .note { display: none; }
   .ticks button { font-size: 10.5px; letter-spacing: 0.04em; }
+  body.intro #ch-text { display: block; font-size: 13.5px; }   /* the intro is told in the card */
+  body.intro #opts { display: none; }
 }
 </style>
 </head>
@@ -100,15 +119,18 @@ input[type=range] { accent-color: var(--accent); width: 100%; margin: 0; }
   <div class="metrics">
     <span>Strömung p99<b id="vel">– mm/s</b></span>
   </div>
-  <p class="note">Dissektion mit anschließender aneurysmatischer Erweiterung. Drei Wandschichten modelliert zwischen den Datenoberflächen; Einriss und Zwischenbewegung sind angenommen.</p>
+  <p class="note" id="note">Dissektion mit anschließender aneurysmatischer Erweiterung. Drei Wandschichten modelliert zwischen den Datenoberflächen; Einriss und Zwischenbewegung sind angenommen.</p>
+  <button id="intro-btn" type="button">Einführung überspringen</button>
 </section>
+<div id="callouts" aria-hidden="true"></div>
 
 <section class="hud" id="opts" aria-label="Darstellung">
   <label class="toggle">CFD-Blutfluss <input type="checkbox" id="o-flow" checked></label>
   <label class="toggle">Innere Wand &amp; Ablösung <input type="checkbox" id="o-flap" checked></label>
-  <label class="toggle">Wahres &amp; falsches Lumen einfärben <input type="checkbox" id="o-lumen"></label>
+  <label class="toggle">Wahres &amp; falsches Lumen einfärben <input type="checkbox" id="o-lumen" checked></label>
   <label class="toggle">Drei Wandschichten <input type="checkbox" id="o-layers" checked></label>
   <label class="toggle">Wandschichten im Schnitt <input type="checkbox" id="o-cut"></label>
+  <label class="toggle">Beschriftungen <input type="checkbox" id="o-labels" checked></label>
   <label class="toggle">Langsam drehen <input type="checkbox" id="o-spin"></label>
   <div class="slider-row"><label for="o-rate">Blutfluss-Tempo <span id="rate-val">Echtzeit</span></label><input type="range" id="o-rate" min="0.05" max="1" step="0.05" value="1"></div>
   <div class="legend">
@@ -123,7 +145,7 @@ input[type=range] { accent-color: var(--accent); width: 100%; margin: 0; }
     <span class="swatch"><i style="background:#d18b86"></i>Adventitia · außen</span>
     <span class="swatch"><i style="background:#b86981"></i>Media · mittig</span>
     <span class="swatch"><i style="background:#f1d3a1"></i>Intima · innen</span>
-    <p class="note">Schichtgrenzen, Einriss und Einstrom durch den Einriss modelliert; Strömung im falschen Lumen aus der Post-CFD. Gefäßwand aus Pre-/Post-Daten; Post-Flap als Formvorgabe. Der offene Schnitt dient nur der Ansicht.</p>
+    <p class="note">Schichtgrenzen, Einriss und Einstrom durch den Einriss modelliert; Strömung im falschen Lumen aus der Post-CFD. Gefäßwand aus Pre-/Post-Daten; Post-Flap als Formvorgabe. Der offene Schnitt dient nur der Ansicht. Körpermodell der Einführung: BodyParts3D, © DBCLS, CC BY 4.0.</p>
   </div>
 </section>
 
@@ -147,6 +169,7 @@ input[type=range] { accent-color: var(--accent); width: 100%; margin: 0; }
 <script src="data/false-lumen-flow.js"></script>
 <script src="data/wall-flap-data.js"></script>
 <script src="data/wall-layers.js"></script>
+<script src="data/body-data.js"></script>
 <script>
 (() => {
 const A = window.AORTA;
@@ -164,7 +187,7 @@ const scene = new THREE.Scene();
   const grd = g.createRadialGradient(256, 230, 20, 256, 256, 380);
   grd.addColorStop(0, '#16212c'); grd.addColorStop(0.55, '#0b1118'); grd.addColorStop(1, '#040609');
   g.fillStyle = grd; g.fillRect(0, 0, 512, 512); scene.background = new THREE.CanvasTexture(c); }
-const camera = new THREE.PerspectiveCamera(35, 1, 20, 3000);
+const camera = new THREE.PerspectiveCamera(35, 1, 20, 5000);
 camera.position.set(-540, 70, -90);
 const controls = new THREE.OrbitControls(camera, canvas);
 controls.enableDamping = true; controls.target.set(0, 0, 0);
@@ -418,7 +441,7 @@ function updateFlap(tt, m) {
 // True lumen: everything enclosed by the inner wall including the peeled flap (same mesh as the flap).
 // False lumen: the space between flap and the unpeeled wall position; drawn on that outer wall where the wall
 // has actually peeled. Translucent with a rim glow, so they read as volumes and the flow stays visible.
-let lumenOn = false;
+let lumenOn = true;
 const lumenVS = `attribute float exposure; varying float vExposure; varying vec3 vN; varying vec3 vV;
 void main(){ vExposure = exposure; vN = normalMatrix * normal; vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = mv.xyz; gl_Position = projectionMatrix * mv; }`;
 const lumenFS = `uniform vec3 col; uniform float alpha; uniform float peeledOnly; varying float vExposure; varying vec3 vN; varying vec3 vV;
@@ -611,26 +634,252 @@ const chapters = [
 ];
 const ticks = ui('ticks');
 chapters.forEach(([a, short], i) => { const b = document.createElement('button'); b.textContent = short; b.style.left = (a * 100) + '%'; b.dataset.a = a;
-  b.onclick = () => { t = i === 0 ? 0 : Math.min(1, a + 0.02); tIn.value = t; setPlay(false); }; ticks.appendChild(b); });
+  b.onclick = () => { endIntro(true); t = i === 0 ? 0 : Math.min(1, a + 0.02); tIn.value = t; setPlay(false); }; ticks.appendChild(b); });
 let curChapter = -1;
 function applyT(tt) {
   const m = smooth(0.32, 1, tt);
   for (let i = 0; i < pos.length; i++) pos[i] = P0[i] + (P1[i] - P0[i]) * m;
   geo.attributes.position.needsUpdate = true;
   geo.computeVertexNormals(); geo.computeBoundingSphere();
-  morph = m; flowFade = smooth(0.35, 0.75, tt); updateFlap(tt, m); updateLayers(tt,m); updateFlowClip(tt); updateFalseLumenFlow(tt);
+  morph = m; flowFade = smooth(0.35, 0.75, tt); updateFlap(tt, m); updateLayers(tt,m); updateFlowClip(tt); updateFalseLumenFlow(tt); updateAnchors();
   ui('vel').textContent = Math.round(F.vPre + (F.vPost - F.vPre) * flowFade) + ' mm/s';
   ui('prog').textContent = 'Verlauf ' + Math.round(tt * 100) + ' %';
   let ci = 0; chapters.forEach(([a], i) => { if (tt >= a) ci = i; });
-  if (ci !== curChapter) { curChapter = ci; const [, , title, text] = chapters[ci];
+  if (ci !== curChapter && !intro.on) { curChapter = ci; const [, , title, text] = chapters[ci];
     ui('ch-num').textContent = ci + 1; ui('ch-title').textContent = title; ui('ch-text').textContent = text; }
   ticks.querySelectorAll('button').forEach((b, i) => { b.classList.toggle('on', tt >= +b.dataset.a); b.classList.toggle('cur', i === ci); });
 }
 const setPlay = p => { playing = p; ui('play').setAttribute('aria-label', p ? 'Pause' : 'Abspielen');
   ui('play-icon').innerHTML = p ? '<rect x="4" y="3" width="4" height="14"/><rect x="12" y="3" width="4" height="14"/>' : '<path d="M5 3 L17 10 L5 17 Z"/>'; };
 setPlay(playing);
-ui('play').onclick = () => { if (!playing && t >= 1) { t = 0; } setPlay(!playing); };
-tIn.oninput = () => { t = +tIn.value; setPlay(false); };
+ui('play').onclick = () => { if (intro.on) { endIntro(true); setPlay(true); return; } if (!playing && t >= 1) { t = 0; } setPlay(!playing); };
+tIn.oninput = () => { endIntro(true); t = +tIn.value; setPlay(false); };
+
+// ---------- schematic upper body for the intro: glass skin, ribs, spine, heart and lungs around the real aorta ----------
+// Only the aorta comes from the data. The body is a hand-built stand-in in the same frame (mm; +x patient left,
+// +y head, +z front), sized and placed after the vessel's landmarks: aortic root on the heart, descending aorta on the spine.
+const shellVS = `varying vec3 vN; varying vec3 vV; varying float vY;
+void main(){ vN = normalMatrix * normal; vY = position.y; vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = mv.xyz; gl_Position = projectionMatrix * mv; }`;
+const shellFS = `uniform vec3 col; uniform vec3 rimCol; uniform float alpha; uniform float face; uniform float cutY; varying vec3 vN; varying vec3 vV; varying float vY;
+void main(){
+  vec3 n = normalize(vN), v = normalize(-vV); if (dot(n, v) < 0.0) n = -n;
+  vec3 L = normalize(vec3(-0.45, 0.6, 0.65));
+  float diff = max(dot(n, L), 0.0), spec = pow(max(dot(reflect(-L, n), v), 0.0), 50.0), fres = pow(1.0 - max(dot(n, v), 0.0), 2.0);
+  vec3 c = mix(col * (0.45 + 0.55 * diff), rimCol, fres * 0.6) + vec3(0.16) * spec;
+  gl_FragColor = vec4(c, alpha * clamp(face + (1.0 - face) * fres + 0.3 * spec, 0.0, 1.0) * smoothstep(cutY, cutY + 90.0, vY));   // soft lower cut
+}`;
+const shellMat = (c, r, face) => new THREE.ShaderMaterial({ vertexShader: shellVS, fragmentShader: shellFS, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  uniforms: { col: { value: new THREE.Color(c) }, rimCol: { value: new THREE.Color(r) }, alpha: { value: 0 }, face: { value: face }, cutY: { value: window.BODY_MODEL.marks.waist } } });
+// Anatomy from BodyParts3D (DBCLS, CC BY 4.0), registered to this aorta by pipeline/register_body.py (similarity ICP on
+// the aortic surface) and built by pipeline/build_body.js. Positions are uint16-quantised per part.
+const BM = window.BODY_MODEL, MK = BM.marks;
+function bodyGeo(P) {
+  const q = dec(P.pos, Uint16Array), p = new Float32Array(q.length);
+  for (let i = 0; i < q.length; i++) p[i] = P.min[i % 3] + q[i] / 65535 * P.ext[i % 3];
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  g.setIndex(new THREE.BufferAttribute(dec(P.idx, P.wide ? Uint32Array : Uint16Array), 1)); g.computeVertexNormals(); return g;
+}
+const bodyMesh = (part, c, r, face, order) => { const m = new THREE.Mesh(bodyGeo(BM.parts[part]), shellMat(c, r, face)); m.renderOrder = order; return m; };
+const group = (...ms) => { const g = new THREE.Group(); ms.forEach(m => g.add(m)); g.mats = ms.map(m => m.material); return g; };
+const heartMesh = bodyMesh('heart', 0xb8403c, 0xff8f78, 0.2, 0.5);
+heartMesh.geometry.translate(-MK.heart[0], -MK.heart[1], -MK.heart[2]); heartMesh.position.fromArray(MK.heart);   // beats around its centre
+const bodyParts = {
+  skin: group(bodyMesh('skin', 0x9fb6c2, 0xd4ecf4, 0.012, 5)),
+  bones: group(bodyMesh('bones', 0xeadfca, 0xfff6e4, 0.22, 0.4), bodyMesh('diaphragm', 0xc98f86, 0xe8b7ab, 0.02, 0.35)),
+  lungs: group(bodyMesh('lungs', 0x7f9cb6, 0xbcd6ea, 0.03, 0.3), bodyMesh('lungTree', 0x9fb8d8, 0xdbe9f7, 0.25, 0.32), bodyMesh('airway', 0xa9c4dc, 0xe2eef8, 0.2, 0.33)),
+  heart: group(heartMesh),
+};
+const bodyGroup = new THREE.Group(); Object.values(bodyParts).forEach(o => bodyGroup.add(o)); scene.add(bodyGroup);
+const BODY_ALPHA = { skin: 0.9, bones: 0.7, lungs: 0.5, heart: 0.75 };
+const vis = { skin: 0, bones: 0, lungs: 0, heart: 0 };
+function applyBodyVis() {
+  for (const k in vis) { for (const m of bodyParts[k].mats) m.uniforms.alpha.value = vis[k] * BODY_ALPHA[k]; bodyParts[k].visible = vis[k] > 0.003; }
+}
+// body frame: the registration turns the body against the data axes, so camera moves are given relative to the body
+const bodyUp = new THREE.Vector3(0, 1, 0);
+const bodyFwd = new THREE.Vector3(MK.sternum[0] - MK.spine[0], 0, MK.sternum[2] - MK.spine[2]).normalize();
+const bodyLeft = new THREE.Vector3().crossVectors(bodyUp, bodyFwd);
+const inBody = (l, u, f) => bodyLeft.clone().multiplyScalar(l).addScaledVector(bodyUp, u).addScaledVector(bodyFwd, f);
+const chest = new THREE.Vector3().fromArray(MK.sternum).add(new THREE.Vector3().fromArray(MK.spine)).multiplyScalar(0.5);
+
+// ---------- callouts: labels pinned to points in the scene ----------
+const LABELS = {};
+// dir: screen direction of the leader line (x right, y down)
+function label(id, text, sub, anchor, dir, opt = {}) {
+  const el = document.createElement('div'); el.className = 'callout' + (opt.warn ? ' warn' : '');
+  el.innerHTML = '<i class="dot"></i><i class="lead"></i><span class="tag"></span>';
+  ui('callouts').appendChild(el);
+  const L = { el, tag: el.querySelector('.tag'), lead: el.querySelector('.lead'), anchor, dir, len: opt.len || 64, shown: false, sub: undefined, text };
+  L.setSub = s => { if (s === L.sub) return; L.sub = s; L.tag.innerHTML = text + (s ? '<small>' + s + '</small>' : ''); };
+  L.setSub(sub); LABELS[id] = L;
+}
+const idsWhere = f => { const a = []; for (let i = 0; i < wallProgress.length; i++) if (f(i)) a.push(i); return a; };
+const centroid = (ids, P) => { const c = new THREE.Vector3(); for (const i of ids) c.set(c.x + P[i * 3], c.y + P[i * 3 + 1], c.z + P[i * 3 + 2]); return c.multiplyScalar(1 / ids.length); };
+const ringRadius = (ids, P) => { const c = centroid(ids, P); let r = 0; for (const i of ids) r += Math.hypot(P[i * 3] - c.x, P[i * 3 + 1] - c.y, P[i * 3 + 2] - c.z); return r / ids.length; };
+const ascIds = idsWhere(i => wallProgress[i] > -0.25 && wallProgress[i] < -0.12);
+const archIds = idsWhere(i => wallProgress[i] > 0.02 && wallProgress[i] < 0.12);
+const descIds = idsWhere(i => wallProgress[i] > 0.65 && wallProgress[i] < 0.8);
+const branchIds = idsWhere(i => P0[i * 3 + 1] > 112);
+const lowIds = idsWhere(i => wallProgress[i] > 0.88 && wallProgress[i] < 0.98);
+// the near wall of the ascending aorta (mid height), seen from the final camera side (-x)
+const midAsc = idsWhere(i => wallProgress[i] > -0.12 && wallProgress[i] < -0.04);
+const wallVertex = midAsc.reduce((b, i) => P0[i * 3] < P0[b * 3] ? i : b, midAsc[0]);
+// aneurysm: the thin ring along the vessel that widens most from Pre to Post
+let aneuIds = [], aneuR0 = 0;
+for (let a = 0.15; a < 1.05; a += 0.025) {
+  const ids = idsWhere(i => wallProgress[i] >= a && wallProgress[i] < a + 0.025);
+  if (ids.length < 200) continue;
+  const r1 = ringRadius(ids, P1);
+  if (!aneuIds.length || r1 > ringRadius(aneuIds, P1)) { aneuIds = ids; aneuR0 = ringRadius(ids, P0); }
+}
+const anc = { asc: new THREE.Vector3(), arch: new THREE.Vector3(), desc: new THREE.Vector3(), branch: new THREE.Vector3(), low: new THREE.Vector3(),
+  wall: new THREE.Vector3(), entry: new THREE.Vector3(), flap: new THREE.Vector3(), falseL: new THREE.Vector3(), trueL: new THREE.Vector3(), aneu: new THREE.Vector3() };
+let aneuD = 0, peeled = 0;
+function updateAnchors() {
+  anc.asc.copy(centroid(ascIds, pos)); anc.arch.copy(centroid(archIds, pos)); anc.desc.copy(centroid(descIds, pos));
+  anc.branch.copy(centroid(branchIds, pos)); anc.low.copy(centroid(lowIds, pos)); anc.aneu.copy(centroid(aneuIds, pos));
+  anc.wall.fromArray(pos, wallVertex * 3); anc.entry.fromArray(flapPos, WF.entryVertex * 3);
+  aneuD = 2 * ringRadius(aneuIds, pos);
+  // Flap: the point of the peeled inner wall where the gap to the outer wall is widest. False lumen: the middle of
+  // that gap. True lumen: from the flap away from the outer wall, half way to the opposite vessel wall.
+  let best = -1, gap = 0, pm = 0; peeled = 0;
+  for (let i = 0; i < flapExposure.length; i++) { const e = flapExposure[i]; if (e >= 0.2) { peeled += e; pm += e * wallProgress[i]; } }
+  pm /= peeled || 1;   // search around the middle of the peeled stretch, not at the tear
+  // prefer a spot where the gap runs across the view, so flap, false and true lumen separate on screen
+  const view = camera.getWorldDirection(new THREE.Vector3()), gv = new THREE.Vector3();
+  for (let i = 0; i < flapExposure.length; i++) { const e = flapExposure[i];
+    if (e < 0.6 || Math.abs(wallProgress[i] - pm) > 0.1) continue;
+    for (let k = 0; k < 3; k++) gv.setComponent(k, flapPos[i * 3 + k] - (FW0[i * 3 + k] + (FW1[i * 3 + k] - FW0[i * 3 + k]) * morph));
+    const g = gv.length(), score = g * (1 - Math.abs(gv.dot(view)) / (g || 1)) ** 2;
+    if (score > gap) { gap = score; best = i; } }
+  if (best < 0) return;
+  const flapP = new THREE.Vector3().fromArray(flapPos, best * 3);
+  const outer = new THREE.Vector3(...[0, 1, 2].map(k => FW0[best * 3 + k] + (FW1[best * 3 + k] - FW0[best * 3 + k]) * morph));
+  anc.flap.copy(flapP); anc.falseL.copy(flapP).lerp(outer, 0.5);
+  const d = flapP.clone().sub(outer).normalize(), pb = wallProgress[best]; let far = 0;
+  for (let i = 0; i < wallProgress.length; i++) if (Math.abs(wallProgress[i] - pb) < 0.02)
+    far = Math.max(far, (pos[i * 3] - flapP.x) * d.x + (pos[i * 3 + 1] - flapP.y) * d.y + (pos[i * 3 + 2] - flapP.z) * d.z);
+  anc.trueL.copy(flapP).addScaledVector(d, far * 0.5);
+}
+const v3 = a => new THREE.Vector3(...a);
+label('aorta', 'Aorta', 'Hauptschlagader', () => anc.arch, [1, -0.7], { len: 110 });
+label('sternum', 'Brustbein', null, () => v3(MK.sternum), [-1, -0.35], { len: 110 });
+label('ribs', 'Rippen', '12 Paare', () => v3(MK.rib), [1, -0.2], { len: 70 });
+label('spine', 'Wirbelsäule', 'hinter dem Herzen', () => v3(MK.spine), [-1, 0.6], { len: 120 });
+label('heart', 'Herz', 'pumpt Blut in die Aorta', () => heartMesh.position, [1, 0.45], { len: 120 });
+label('lungR', 'Rechte Lunge', null, () => v3(MK.lungRside), [-0.25, 1], { len: 90 });
+label('lungL', 'Linke Lunge', null, () => v3(MK.lungLside), [0.3, 1], { len: 90 });
+label('trachea', 'Luftröhre', null, () => v3(MK.trachea), [-1, -0.5], { len: 90 });
+label('asc', 'Aorta ascendens', 'aufsteigend, direkt aus dem Herzen', () => anc.asc, [1, -0.2], { len: 80 });
+label('arch', 'Aortenbogen', null, () => anc.arch, [0.6, -1], { len: 70 });
+label('branch', 'Abgänge', 'Gefäße zu Kopf und Armen', () => anc.branch, [-0.8, -1], { len: 70 });
+label('desc', 'Aorta descendens', 'absteigend, vor der Wirbelsäule', () => anc.desc, [-1, 0.25], { len: 90 });
+label('flow', 'Blutfluss', 'aus der CFD-Simulation', () => anc.low, [-1, 0.3], { len: 80 });
+label('wall', 'Gefäßwand', 'Intima · Media · Adventitia', () => anc.wall, [1, 0.5], { len: 80 });
+label('site', 'Hier beginnt die Dissektion', null, () => anc.entry, [-1, -0.6], { len: 90, warn: true });
+label('entry', 'Einriss (Entry)', 'Blut dringt in die Wand ein', () => anc.entry, [-1, -0.6], { len: 90, warn: true });
+label('flap', 'Flap', 'abgelöste Innenwand', () => anc.flap, [-1, 0.45], { len: 110 });
+label('falseL', 'Falsches Lumen', 'Blut zwischen den Wandschichten', () => anc.falseL, [-1, 0.9], { len: 120 });
+label('trueL', 'Wahres Lumen', 'eigentliche Blutbahn', () => anc.trueL, [1, 0.35], { len: 120 });
+label('aneu', 'Aneurysma', null, () => anc.aneu, [1, -0.45], { len: 150, warn: true });
+const _p = new THREE.Vector3();
+function updateCallouts(active) {
+  const w = innerWidth, h = innerHeight, small = w < 720;
+  const panels = [...document.querySelectorAll('.hud')].filter(e => e.offsetParent && getComputedStyle(e).display !== 'none').map(e => e.getBoundingClientRect());
+  for (const id in LABELS) {
+    const L = LABELS[id];
+    _p.copy(L.anchor()).project(camera);
+    const show = active.includes(id) && _p.z < 1;
+    if (show !== L.shown) { L.shown = show; L.el.style.opacity = show ? 1 : 0; }
+    if (_p.z >= 1) continue;
+    const x = (_p.x + 1) / 2 * w, y = (1 - _p.y) / 2 * h, len = L.len * (small ? 0.6 : 1);
+    const dl = Math.hypot(L.dir[0], L.dir[1]);
+    let dx = L.dir[0] / dl * len, dy = L.dir[1] / dl * len;
+    // keep the tag clear of the panels: mirror the leader line if the tag would land under one
+    const tw = L.tag.offsetWidth || 160, th = L.tag.offsetHeight || 40;
+    const box = (ddx, ddy) => { const l = x + ddx + (ddx >= 0 ? 4 : -4 - tw), t = y + ddy - th / 2; return [l, t, l + tw, t + th]; };
+    const blocked = b => b[0] < 8 || b[2] > w - 8 || b[1] < 8 || b[3] > h - 8 || panels.some(r => b[0] < r.right && b[2] > r.left && b[1] < r.bottom && b[3] > r.top);
+    if (show && blocked(box(dx, dy))) for (const [fx, fy] of [[-1, 1], [1, -1], [-1, -1]]) if (!blocked(box(dx * fx, dy * fy))) { dx *= fx; dy *= fy; break; }
+    L.el.style.transform = `translate(${x}px, ${y}px)`;
+    L.lead.style.width = len + 'px'; L.lead.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+    L.tag.style.transform = `translate(${dx >= 0 ? dx + 4 : dx - 4}px, ${dy}px) translate(${dx >= 0 ? 0 : -100}%, -50%)`;
+  }
+}
+const MAIN_LABELS = [['asc', 'arch', 'desc'], ['entry', 'flap'], ['falseL', 'trueL'], ['aneu', 'falseL', 'trueL']];
+const FLAP_LABELS = ['entry', 'flap', 'falseL', 'trueL'];
+let labelsOn = true;
+ui('o-labels').onchange = e => { labelsOn = e.target.checked; };
+
+// ---------- intro: the camera flies from the whole upper body into the chest to the aorta ----------
+// Each step moves the camera (target, view direction, distance) within `move` s, then drifts slowly around the target.
+const finalPose = () => ({ t: new THREE.Vector3(), d: new THREE.Vector3(-540, 70, -90).normalize(), r: innerWidth < 720 ? 700 : 560 });
+const H = MK.top - MK.waist, midY = (MK.top + MK.waist) / 2;   // height of the cropped body
+const INTRO = [
+  { dur: 6, move: 6, target: [chest.x, midY, chest.z], dir: inBody(0.3, 0.08, 1), dist: H * 2.0, startDist: H * 2.8, drift: 0, labels: ['aorta'],
+    vis: { skin: 1, bones: 0.3, lungs: 0.12, heart: 0.2 },
+    title: 'Der Oberkörper', text: 'Die Aorta ist die Hauptschlagader des Körpers. Sie liegt tief im Brustkorb – hinter Brustbein und Rippen, direkt vor der Wirbelsäule.' },
+  { dur: 6.5, move: 3.2, target: [chest.x, MK.heart[1] + 40, chest.z], dir: inBody(0, 0.08, 1), dist: H * 1.22, drift: 0.02, labels: ['sternum', 'ribs', 'spine'],
+    vis: { skin: 0.3, bones: 1, lungs: 0.3, heart: 0.35 },
+    title: 'Der Brustkorb', text: 'Rippen, Brustbein und Wirbelsäule bilden einen schützenden Käfig um Herz, Lunge und die großen Gefäße.' },
+  { dur: 7, move: 3.2, target: [chest.x * 0.5 + MK.heart[0] * 0.5, MK.heart[1] + 40, chest.z * 0.5 + MK.heart[2] * 0.5], dir: inBody(-0.12, 0.1, 1), dist: H * 0.86, drift: 0.025,
+    labels: ['heart', 'lungR', 'lungL', 'trachea'],
+    vis: { skin: 0.08, bones: 0.3, lungs: 0.85, heart: 1 },
+    title: 'Herz und Lunge', text: 'Das Herz liegt zwischen den beiden Lungenflügeln, etwas nach links versetzt. Mit jedem Schlag pumpt es rund 70 ml Blut in die Aorta – in Ruhe etwa 5 Liter pro Minute.' },
+  { dur: 8.5, move: 3.6, target: [-5, 25, 5], dir: inBody(-0.62, 0.15, 0.78), dist: 560, drift: -0.03, labels: ['asc', 'arch', 'branch', 'desc'],
+    vis: { skin: 0.03, bones: 0.1, lungs: 0.08, heart: 0.25 },
+    title: 'Die Aorta', text: 'Sie steigt aus dem Herzen auf, biegt im Aortenbogen nach hinten links und zieht vor der Wirbelsäule nach unten. Aus dem Bogen gehen die Gefäße für Kopf und Arme ab.' },
+  { dur: 8, move: 3.6, final: true, drift: 0, labels: ['wall', 'flow', 'site'],
+    vis: { skin: 0, bones: 0, lungs: 0, heart: 0 },
+    title: 'Die Gefäßwand', text: 'Die Wand hat drei Schichten: Intima innen, Media in der Mitte, Adventitia außen. Die Linien zeigen den simulierten Blutfluss. Im absteigenden Teil reißt gleich die Innenschicht ein – der Beginn einer Dissektion.' },
+];
+const INTRO_NOTE = 'Körpermodell: BodyParts3D, © DBCLS, CC BY 4.0 – ein Referenzkörper, an die Aorta dieses Datensatzes angepasst. Lungenhülle aus dem Bronchialbaum abgeleitet.';
+const NOTE = ui('note').textContent;
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+const fit = () => Math.min(2.2, Math.max(1, 1.2 / camera.aspect));   // portrait screens: step back so the body still fits
+const stepPose = S => S.final ? finalPose() : { t: v3(S.target), d: S.dir.clone().normalize(), r: S.dist * fit() };
+function poseOf(k, local) {
+  const S = INTRO[k], b = stepPose(S);
+  const a = k ? poseOf(k - 1, INTRO[k - 1].dur) : { t: b.t.clone(), d: b.d.clone(), r: S.startDist * fit() };
+  const u = ease(Math.min(1, local / S.move));
+  return { t: a.t.clone().lerp(b.t, u), d: a.d.clone().lerp(b.d, u).normalize().applyAxisAngle(Y_AXIS, S.drift * local), r: a.r * Math.pow(b.r / a.r, u) };
+}
+const setPose = p => { camera.position.copy(p.t).addScaledVector(p.d, p.r); camera.lookAt(p.t); };
+const curPose = () => { const t = controls.target.clone(), off = camera.position.clone().sub(t); return { t, d: off.clone().normalize(), r: off.length() }; };
+const params = new URLSearchParams(location.search);
+const introFreeze = params.has('intro') ? +params.get('intro') : null;   // ?intro=12 holds the intro at 12 s (for stills)
+const intro = { on: false, time: 0, step: -1, pose: null };
+let handoff = null;   // short camera flight to the main view after skipping
+function startIntro() {
+  intro.on = true; intro.time = introFreeze ?? 0; intro.step = -1; handoff = null;
+  t = 0; tIn.value = 0; lastT = -1; setPlay(false); controls.enabled = false;
+  document.body.classList.add('intro'); ui('intro-btn').textContent = 'Einführung überspringen'; ui('note').textContent = INTRO_NOTE;
+}
+function endIntro(fly) {
+  if (!intro.on) return;
+  intro.on = false; controls.enabled = true;
+  if (intro.pose) controls.target.copy(intro.pose.t);
+  document.body.classList.remove('intro'); ui('intro-btn').textContent = 'Einführung ansehen'; ui('note').textContent = NOTE;
+  curChapter = -1; lastT = -1;
+  if (fly) handoff = { from: curPose(), time: 0 };
+}
+function updateIntro(dt) {
+  if (introFreeze === null) intro.time += dt;
+  let k = 0, local = intro.time;
+  while (k < INTRO.length - 1 && local > INTRO[k].dur) local -= INTRO[k++].dur;
+  if (local > INTRO[k].dur) { endIntro(false); if (!reduceMotion) setPlay(true); return; }
+  intro.pose = poseOf(k, local); setPose(intro.pose);
+  const S = INTRO[k], from = k ? INTRO[k - 1].vis : { skin: 1, bones: 0.15, lungs: 0, heart: 0.1 }, u = ease(Math.min(1, local / S.move));
+  for (const key in vis) vis[key] = from[key] + (S.vis[key] - from[key]) * u;
+  if (k !== intro.step) {
+    intro.step = k;
+    ui('ch-num').textContent = k + 1; ui('ch-title').textContent = S.title; ui('ch-text').textContent = S.text;
+    ui('prog').textContent = 'Einführung ' + (k + 1) + ' / ' + INTRO.length;
+  }
+  return local > S.move * 0.7 ? S.labels : [];
+}
+ui('intro-btn').onclick = () => { if (intro.on) { endIntro(true); setPlay(!reduceMotion); } else startIntro(); };
+canvas.addEventListener('pointerdown', () => { endIntro(false); handoff = null; });
+canvas.addEventListener('wheel', () => { endIntro(false); handoff = null; }, { passive: true });
 
 // post-processing: restrained bloom for the brightest flow pulses; MSAA target (WebGL2) or FXAA keeps edges clean
 const rt = renderer.capabilities.isWebGL2 ? new THREE.WebGLMultisampleRenderTarget(1, 1, { format: THREE.RGBAFormat }) : undefined;
@@ -661,11 +910,33 @@ function frame() {
   flowPre.update(flowTime, morph, 1 - flowFade, flowOn); flowPost.update(flowTime, morph, flowFade, flowOn);
   flowBranch.update(flowTime, morph, 1, flowOn);
   for (const f of [flReal, flJet]) { f.mesh.visible = flowOn && flapOn; f.mat.uniforms.time.value = flowTime; }
-  controls.update(); composer.render();
+  let active;
+  if (intro.on) active = updateIntro(dt);
+  if (!intro.on) {
+    for (const k in vis) vis[k] *= Math.exp(-dt * 2.5);           // the body fades out once the story begins
+    if (handoff) {                                               // after skipping: fly to the main view
+      handoff.time += dt; const u = ease(Math.min(1, handoff.time / 1.6)), b = finalPose(), a = handoff.from;
+      const p = { t: a.t.clone().lerp(b.t, u), d: a.d.clone().lerp(b.d, u).normalize(), r: a.r * Math.pow(b.r / a.r, u) };
+      setPose(p); controls.target.copy(p.t);
+      if (u >= 1) handoff = null;
+    } else controls.update();
+    active = MAIN_LABELS[curChapter] || [];
+    if (labelsOn && active.some(id => FLAP_LABELS.includes(id))) updateAnchors();   // follow the camera
+    if (!flapOn) active = active.filter(id => !FLAP_LABELS.includes(id));
+    if (peeled < 30) active = active.filter(id => id !== 'falseL' && id !== 'trueL' && id !== 'flap');
+    LABELS.aneu.setSub('Ø ≈ ' + Math.round(aneuD) + ' mm · gesund ≈ ' + Math.round(2 * aneuR0) + ' mm');
+  }
+  applyBodyVis();
+  heartMesh.scale.setScalar(1 + 0.035 * Math.exp(-Math.pow(((flowTime % 0.8) / 0.8 - 0.08) / 0.07, 2)));   // beats with the CFD cycle (0.8 s)
+  updateCallouts(labelsOn ? active : []);
+  composer.render();
   requestAnimationFrame(frame);
 }
 ui('loading').hidden = true;
 tIn.value = t;
+if (params.has('t')) { t = +params.get('t'); tIn.value = t; setPlay(false); ui('intro-btn').textContent = 'Einführung ansehen'; }
+else if (!reduceMotion || introFreeze !== null) startIntro();
+else ui('intro-btn').textContent = 'Einführung ansehen';
 frame();
 })();
 </script>

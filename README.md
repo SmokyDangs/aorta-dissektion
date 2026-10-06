@@ -83,6 +83,34 @@ die Wand schon abgelöst hat. Beide sind halbtransparent mit Randaufhellung, die
 Die Zeitleiste ist in vier Kapitel gegliedert (Gesund · Einriss · Erweiterung · Aneurysma), jeweils mit kurzem Erklärtext
 in der Karte oben links; ein Klick auf ein Kapitel springt dorthin. Die Kapitelgrenzen sind gestalterisch gewählt. Die Animation dauert 18 Sekunden und stoppt am Endzustand; erneutes Abspielen startet von vorn.
 
+## Einführung: Kamerafahrt in den Oberkörper
+
+Beim Start fliegt die Kamera in rund 36 Sekunden und in fünf Schritten von außen in den Brustkorb: Oberkörper → Brustkorb → Herz und Lunge →
+Aorta (ascendens, Bogen, Abgänge, descendens) → Gefäßwand. Danach startet die Zeitleiste. Beschriftungen sind an Punkte im Raum
+gebunden und wandern mit der Kamera mit. Auch in den vier Kapiteln zeigen sie, was wo passiert (Einriss, Flap, wahres und falsches Lumen,
+Aneurysma mit Durchmesser aus dem Netz). Abschalten lassen sie sich mit „Beschriftungen“.
+
+**Körpermodell:** Haut, Knochen (Rippen, Brustbein, Wirbelsäule, Schlüsselbeine), Herz, Bronchial- und Gefäßbaum der Lunge,
+Luftröhre und Zwerchfell stammen aus **BodyParts3D, © The Database Center for Life Science, CC BY 4.0**
+(https://dbarchive.biosciencedbc.jp/en/bodyparts3d/). Es ist ein Referenzkörper, nicht der Patient dieses Datensatzes.
+`pipeline/register_body.py` passt dafür unsere Aorta per ICP (Drehung, Verschiebung, einheitliche Skalierung) an die Aorta von
+BodyParts3D an. Mittlere Abweichung ~4 mm, Maßstab 0,73. Der Körper wird mit der Umkehrung dieser Transformation um unsere Aorta gelegt.
+`pipeline/build_body.js` schneidet ihn unterhalb der Taille ab, vereinfacht die Netze mit meshoptimizer und schreibt `data/body-data.js`.
+Annahmen: BodyParts3D enthält keine Lungenoberfläche. Die Lungenhülle ist deshalb eine geglättete Hülle um den Bronchial-/Gefäßbaum.
+Die Herzkammerwände fehlen ebenfalls, also sind die Kammerhohlräume um 9 mm (links) bzw. 4 mm (rechts) aufgeweitet.
+
+Neu erzeugen (Archiv `partof_BP3D_4.0_obj_99.zip`, die Listen `partof_element_parts.txt` und eine `wanted.tsv` mit Konzept-ID
+und Datei-ID der benötigten Organe in einem Ordner, OBJ-Dateien entpackt nach `obj/`; NumPy/SciPy, Node mit `meshoptimizer`):
+
+```sh
+python3 pipeline/register_body.py . <bp3d-ordner> > reg.json
+node pipeline/build_body.js <bp3d-ordner> reg.json data/body-data.js
+```
+
+„Einführung überspringen“, Ziehen in der Szene, Abspielen oder die Zeitleiste beenden das Intro; „Einführung ansehen“ startet es neu.
+Bei „Bewegung reduzieren“ im Betriebssystem startet es nicht automatisch. Für Standbilder: `index.html?intro=17` hält das Intro bei 17 s an,
+`index.html?t=0.5` springt ohne Intro auf 50 % der Zeitleiste. `index_ohne_intro.html` ist die Version davor.
+
 ## Bedienung
 
 - Abspielen/Pause, Zeitleiste ziehen
